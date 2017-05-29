@@ -1,0 +1,308 @@
+#!/usr/bin/env node
+
+'use strict';
+
+var aws = require('aws-sdk');
+var HttpsProxyAgent = require('https-proxy-agent');
+var argv = require('yargs').argv;
+var Table = require('cli-table');
+var fs = require('fs');
+var prompt = require('prompt');
+var events = require('events');
+var Spinner = require('cli-spginner').Spinner;
+var app = new events.EventEmitter();
+
+app.on('quit', function() {
+    console.log("Quitting");
+    process.exit(0);
+});
+
+/***************************************
+Spinner Configuration
+***************************************/
+var spinner = new Spinner('');
+spinner.setSpinnerString(19);
+
+// Mode
+
+if(!argv.hasOwnProperty('action')){
+	argv.action = 'list';
+}
+
+// Profile Set
+
+if(argv.hasOwnProperty('profile'))
+	var profileToUse = argv.profile;
+else
+	var profileToUse = 'default';
+var credentials = new aws.SharedIniFileCredentials({profile: profileToUse});
+aws.config.credentials = credentials;
+
+if (typeof process.env.https_proxy !== 'undefined') {
+  aws.config.update({
+    httpOptions: {
+      agent: new HttpsProxyAgent(process.env.https_proxy)
+    }
+  });
+}
+
+// Region set
+
+if(argv.hasOwnProperty('region'))
+	var regionToUse = argv.region;
+else
+	var regionToUse = 'ap-southeast-2';
+
+// Help
+
+if(argv.hasOwnProperty('help')){
+	usage();
+	process.exit(0);
+}
+
+var _ec2 = new aws.EC2({region: regionToUse});
+var _sts = new aws.STS();
+var foundSnapshots = [];
+/**********************************************
+CLI Table Configuration
+**********************************************/
+var constructed=[];
+var table = new Table({
+    head: ['','Name','Id','Start Time','Status']
+  , colWidths: [7,70,25,43,12]
+});
+
+/***********************************************
+Input Schema Configuration
+**********************************************/
+
+// Prompt Schema for input prompt
+var deleteListSchema = {
+    properties: {
+      deleteList: {
+     	description: "Enter a comma-separated list of snapshots to delete (Example : 1-4,6,7), or q to quit.",
+        required: true
+      }
+    }
+  };
+var confirmationSchema = {
+    properties: {
+      confirmation: {
+     	description: "Confirm delete ? [yes/no]",
+        required: true
+      }
+    }
+  };
+
+
+function usage()
+{
+	console.log("Usage");
+	console.log("---------------------------------------------------------");
+	console.log(process.argv[1] + " [--action action] [--profile profileName] [--region awsRegion] [--filterByStatus status] [--pattern pattern] [--findByVolumeId volumeId] [--beforeTime time] [--afterTime time] [--help]");
+	console.log("action: Action to perform ,currently supported : list , delete");
+	console.log("profile: AWS profile to use, defaults to 'default' profile");
+	console.log("region: AWS region to use, defaults to 'ap-southeast-2'");
+	console.log("filterByStatus: Filter by Snapshot status, currently supported : pending | completed | error");
+	console.log("pattern: Matching pattern, '*' wildcard supported");
+  console.log("   N.B. '' quotes are required for wildcards to prevent the shell from interpolating them");
+	console.log("   e.g. "+process.argv[1]+" --pattern 'myproject-.*' to list all the snapshots with the prefix of myproject-");
+	console.log("findByVolumeId: Find snapshots by EBS volume id");
+  console.log("beforeDate: EPOCH");
+  console.log("afterDate: EPOCH");
+	console.log("help: Display this usage message");
+}
+
+/***
+Recursive Snapshot finder
+***/
+function rFindSnapshots(params,snapshotars,callback){
+	(function(params,snapshotars,callback){
+		_ec2.describeSnapshots(params,function(err,res){
+			if(err){
+				console.log(err);
+				callback(err);
+			}
+			else {
+				// check if Snapshots exist in result set
+				if(typeof res.Snapshots !== 'undefined'){
+					res.Snapshots.forEach(function(snapshot){
+            var name="";
+            if(snapshot.Tags.length > 0){
+              for(var j=0;j<snapshot.Tags.length;j++) {
+                if(snapshot.Tags[j].Key === 'Name') {
+                  name = snapshot.Tags[j].Value;
+                }
+              }
+            }
+            // both timestamps defined, find snapshots in between
+            if(argv.hasOwnProperty('beforeTime') && argv.hasOwnProperty('afterTime')){
+              if(Date.parse(snapshot.StartTime) >= (Date.parse(argv.afterTime)) && Date.parse(snapshot.StartTime) <= (Date.parse(argv.beforeTime))){
+                if (name.match(argv.pattern) !== null) {
+                  snapshotars.push(snapshot);
+                }
+              }
+            }
+            // only beforeTime specified
+            else if(argv.hasOwnProperty('beforeTime') && !argv.hasOwnProperty('afterTime')){
+              if(Date.parse(snapshot.StartTime) <= (Date.parse(argv.beforeTime))){
+                if (name.match(argv.pattern) !== null) {
+                  snapshotars.push(snapshot);
+                }
+              }
+            }
+            //only afterTime specified
+            else if(!argv.hasOwnProperty('beforeTime') && argv.hasOwnProperty('afterTime')){
+              if(Date.parse(snapshot.StartTime) >= (Date.parse(argv.afterTime))){
+                if (name.match(argv.pattern) !== null) {
+                  snapshotars.push(snapshot);
+                }
+              }
+            }
+            //neither specified
+            else {
+              if (name.match(argv.pattern) !== null) {
+                snapshotars.push(snapshot);
+              }
+            }
+
+					});
+				}
+				// more Snapshots with NextToken
+				if(typeof res.NextToken !== 'undefined') {
+					params.NextToken = res.NextToken;
+					rFindSnapshots(params,snapshotars,callback);
+				}
+				else {
+					callback(null);
+				}
+			}
+		});
+	})(params,snapshotars,callback);
+}
+
+
+spinner.start();
+_sts.getCallerIdentity({},function(err,stsdata){
+  if(err){
+    console.log(err);
+  }
+  else {
+    var params = {
+      OwnerIds: [
+        stsdata.Account
+      ]
+    };
+    if(argv.hasOwnProperty('findByVolumeId')){
+    	params.Filters = [{
+        Name: 'volume-id',
+        Values: [
+          argv.findByVolumeId
+        ]
+      }];
+    }
+    rFindSnapshots(params,foundSnapshots,function(err){
+      spinner.stop();
+      if(err){
+        console.log(err);
+      }
+      else{
+        var numCounter =0;
+        if(foundSnapshots.length < 1){
+          console.log("No snapshots found.");
+          process.exit(1);
+        }
+        console.log("Number of Snapshots found : "+foundSnapshots.length);
+          for(var i=0;i<foundSnapshots.length;i++){
+            var name="--not set--"
+            if(foundSnapshots[i].Tags.length > 0){
+              for(var j=0;j<foundSnapshots[i].Tags.length;j++) {
+                if(foundSnapshots[i].Tags[j].Key === 'Name') {
+                  name = foundSnapshots[i].Tags[j].Value;
+                }
+              }
+            }
+            table.push([++numCounter,name,foundSnapshots[i].SnapshotId,foundSnapshots[i].StartTime,foundSnapshots[i].State]);
+          }
+        console.log(table.toString());
+        switch(argv.action){
+        		case 'list':
+        			process.exit(0);
+        			break;
+        		case 'delete':
+        			var deleteIndex = [];
+        			prompt.start();
+        			prompt.message = "";
+        			prompt.delimiter="";
+        		 	prompt.get(deleteListSchema, function (err, result) {
+        			    if (err) { return onErr(err); }
+        			    var deleteList = result.deleteList.split(",");
+                                                if (deleteList[0] === 'q') {
+                                                    app.emit('quit');
+                                                }
+        			    for(var i=0; i<deleteList.length;i++)
+        			    {
+        			    	var subList = deleteList[i].split("-");
+        			    	var startCount = subList[0];
+        			    	var endCount;
+        			    	if(subList.length > 1){
+        			    		endCount = parseInt(subList[1]);
+        			    	}
+        			    	else {
+        			    		endCount = parseInt(subList[0]);
+        			    	}
+        			    	for(var j=startCount;j<=endCount;j++){
+        			    		if(j<=0 || j>foundSnapshots.length){
+        			    			console.log("Invalid input..");
+        			    			process.exit(1);
+        			    		}
+        			    		deleteIndex.push(j);
+        			    	}
+        			    }
+        			    console.log("Will delete the following snapshots...");
+        			    console.log("------------------------------------");
+        			    for(var i=0;i<deleteIndex[i];i++){
+        			    	console.log(table[deleteIndex[i]-1][1]);
+        			    }
+        			    console.log("------------------------------------");
+        			    prompt.get(confirmationSchema, function (err, result) {
+        			    	if(err) {return onErr(err); }
+        			    	switch(result.confirmation){
+        			    		case 'yes':
+        			    			for(var i=0; i< deleteIndex[i];i++){
+        			    				var params = {
+        										SnapshotId: table[deleteIndex[i]-1][2]
+        								};
+        								(function(params) {
+        								_ec2.deleteSnapshot(params,function(err,data){
+        									if(err){
+                            console.log(err);
+        										console.log("Error deleting "+params.SnapshotId);
+        									}
+        									else {
+        										console.log("Deleted "+params.SnapshotId+" ...");
+        									}
+        								})})(params);
+        			    			}
+        			    			break;
+        			    		case 'no':
+        			    			process.exit(0);
+        			    			break;
+        			    	}
+        			    });
+        		  	});
+        			break;
+        }
+      }
+    });
+  }
+})
+
+process.on('SIGINT', function() {
+    console.log("Caught interrupt signal, exiting.");
+    process.exit(0);
+});
+
+function onErr(err) {
+    console.log("Error encountered: ", err, err.stack);
+};

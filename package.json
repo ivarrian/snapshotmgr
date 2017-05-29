@@ -1,0 +1,31 @@
+{
+  "name": "snapshotmgr",
+  "version": "1.0.0",
+  "description": "Manage EBS Snapshots",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/ivarrian/snapshotmgr.git"
+  },
+  "keywords": [
+    "EBS",
+    "Snapshots"
+  ],
+  "author": "Ravi Nair",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ivarrian/snapshotmgr/issues"
+  },
+  "homepage": "https://github.com/ivarrian/snapshotmgr#readme",
+  "dependencies": {
+    "aws-sdk": "^2.58.0",
+    "cli-spinner": "^0.2.6",
+    "cli-table": "^0.3.1",
+    "https-proxy-agent": "^1.0.0",
+    "prompt": "^1.0.0",
+    "yargs": "^8.0.1"
+  }
+}
