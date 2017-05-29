@@ -14,7 +14,7 @@ EBS Snapshot Manager (to view / delete AWS EBS Snapshot)
 - profile : (optional) Loads the profile from ~/.aws/credentials. If not specified, loads the 'default' profile. For details on how to configure the profiles, see [here](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-multiple-profiles)
 - action : (optional) Acceptable values are 'list','delete' . Default : 'list'
 - region : (optional) Valid AWS Regions (more [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#cfn_region))
-- filterByStatus : (optional) Valid Snapshot Stack Statuses (more [here](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-describing-stacks.html)). Specify more than one status separated by commas. If not specified, cf-manager will attempt to list stacks of all statuses.
+- filterByStatus : (optional) Valid Snapshot Statuses (pending | completed | error ). If not specified, snapshotmgr will attempt to list snapshots of all statuses.
 - pattern : (optional) A string pattern that the name(s) of EBS Snapshot(s) begin with. If not specified, snapshotmgr will attempt to list all snapshots.
 - beforeTime : ISO 8601 timestamp
 - afterTime : ISO 8601 timestamp
