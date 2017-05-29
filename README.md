@@ -23,8 +23,8 @@ EBS Snapshot Manager (to view / delete AWS EBS Snapshot)
 
 #Example usage
 
-    snapshotmgr --pattern foo-bar- --filterByStatus completed --action delete
-The above command will list all snapshots that start with "foo-bar-" and with status 'completed' and will request input for deletion
+    snapshotmgr --pattern foo-bar- --filterByStatus completed --beforeTime 'Jan 01 2017 00:00:00 GMT+1000' --action delete
+The above command will list all snapshots that start with "foo-bar-" and with status 'completed' and started before 01 Jan 2017 (AEST) and will request input for deletion
 
 # Bugs
 
