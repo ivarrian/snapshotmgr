@@ -1,16 +1,16 @@
 # snapshotmgr
 EBS Snapshot Manager (to view / delete AWS EBS Snapshot)
 
-#Requirements
+# Requirements
 
 - [NodeJS](http://nodejs.org/)
 
-#Installation/Setup
+# Installation/Setup
 
     git clone <this repo>
     npm install
 
-#Options
+# Options
 - profile : (optional) Loads the profile from ~/.aws/credentials. If not specified, loads the 'default' profile. For details on how to configure the profiles, see [here](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-multiple-profiles)
 - action : (optional) Acceptable values are 'list','delete' . Default : 'list'
 - region : (optional) Valid AWS Regions (more [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#cfn_region))
@@ -21,7 +21,7 @@ EBS Snapshot Manager (to view / delete AWS EBS Snapshot)
 - findByVolumeId : AWS EBS Volume Id , find snapshots related to a specific volume
 - help : (optional) Display a helpful usage message
 
-#Example usage
+# Example usage
 
     snapshotmgr --pattern foo-bar- --filterByStatus completed --beforeTime 'Jan 01 2017 00:00:00 GMT+1000' --action delete
 The above command will list all snapshots that start with "foo-bar-" and with status 'completed' and started before 01 Jan 2017 (AEST) and will request input for deletion
