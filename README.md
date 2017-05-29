@@ -1,4 +1,4 @@
-# cf-manager
+# snapshotmgr
 EBS Snapshot Manager (to view / delete AWS EBS Snapshot)
 
 #Requirements
