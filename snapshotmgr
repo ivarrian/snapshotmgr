@@ -9,7 +9,7 @@ var Table = require('cli-table');
 var fs = require('fs');
 var prompt = require('prompt');
 var events = require('events');
-var Spinner = require('cli-spginner').Spinner;
+var Spinner = require('cli-spinner').Spinner;
 var app = new events.EventEmitter();
 
 app.on('quit', function() {
