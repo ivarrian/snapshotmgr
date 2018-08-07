@@ -22,9 +22,10 @@
   "homepage": "https://github.com/ivarrian/snapshotmgr#readme",
   "dependencies": {
     "aws-sdk": "^2.58.0",
+    "backoff": "^2.5.0",
     "cli-spinner": "^0.2.6",
     "cli-table": "^0.3.1",
-    "https-proxy-agent": "^1.0.0",
+    "https-proxy-agent": "^2.2.0",
     "prompt": "^1.0.0",
     "yargs": "^8.0.1"
   }

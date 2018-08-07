@@ -11,6 +11,13 @@ var prompt = require('prompt');
 var events = require('events');
 var Spinner = require('cli-spinner').Spinner;
 var app = new events.EventEmitter();
+var backoff = require('backoff');
+
+var fibonacciBackoff = backoff.fibonacci({
+    randomisationFactor: 1,
+    initialDelay: 10,
+    maxDelay: 300
+});
 
 app.on('quit', function() {
     console.log("Quitting");
@@ -60,7 +67,7 @@ if(argv.hasOwnProperty('help')){
 	process.exit(0);
 }
 
-var _ec2 = new aws.EC2({region: regionToUse});
+var _ec2 = new aws.EC2({region: regionToUse, retryDelayOptions : {base : 3000}});
 var _sts = new aws.STS();
 var foundSnapshots = [];
 /**********************************************
